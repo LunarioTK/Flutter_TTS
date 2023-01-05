@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_tts/flutter_tts.dart';
+import 'package:syncfusion_flutter_pdf/pdf.dart';
 
 class Home extends StatefulWidget {
   const Home({super.key});
@@ -22,57 +24,80 @@ class _HomeState extends State<Home> {
     await flutterTts.setVoice({"name": "Karen", "locale": "en-AU"});
   }
 
+  Future<List<int>> _readDocumentData(String name) async {
+    final ByteData data = await rootBundle.load('assets/$name');
+    return data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
+  }
+
   @override
   Widget build(BuildContext context) {
-    TextEditingController controller = TextEditingController();
+    void showResult(String text) {
+      showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text('Extracted text'),
+              content: Scrollbar(
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(
+                      parent: AlwaysScrollableScrollPhysics()),
+                  child: Text(text),
+                ),
+              ),
+              actions: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    ElevatedButton(
+                      onPressed: (() => flutterTts.speak(text)),
+                      child: const Text('Speak'),
+                    ),
+                    ElevatedButton(
+                      onPressed: (() => Navigator.of(context).setState(() {
+                            flutterTts.stop();
+                          })),
+                      child: const Text('Stop'),
+                    ),
+                    ElevatedButton(
+                      child: const Text('Close'),
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                  ],
+                )
+              ],
+            );
+          });
+    }
+
+    Future<String> generatePDF() async {
+      //Load an existing PDF document.
+      PdfDocument document = PdfDocument(
+          inputBytes:
+              await _readDocumentData('Carta de Apresentação Team.It.pdf'));
+
+      //Create a new instance of the PdfTextExtractor.
+      PdfTextExtractor extractor = PdfTextExtractor(document);
+
+      //Extract all the text from the document.
+      String text = extractor.extractText();
+
+      showResult(text);
+
+      return text;
+    }
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Text To Speech App'),
+        elevation: 0,
       ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(15.0),
-            child: Container(
-              decoration: BoxDecoration(
-                border: Border.all(
-                  color: Colors.blue.shade800,
-                ),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: TextField(
-                  controller: controller,
-                  decoration: const InputDecoration(
-                      border: InputBorder.none,
-                      hintText: 'Text',
-                      hintStyle: TextStyle(
-                        fontSize: 20,
-                      )),
-                ),
-              ),
-            ),
-          ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              ElevatedButton(
-                onPressed: (() {
-                  flutterTts.speak(controller.text);
-                }),
-                child: const Text('Speak'),
-              ),
-              ElevatedButton(
-                onPressed: (() {
-                  flutterTts.stop();
-                }),
-                child: const Text('Pause'),
-              ),
-            ],
-          )
-        ],
+      body: Center(
+        child: ElevatedButton(
+          onPressed: (() async {
+            showResult(await generatePDF());
+          }),
+          child: const Text('Generate PDF'),
+        ),
       ),
     );
   }

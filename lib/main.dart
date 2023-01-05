@@ -11,6 +11,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const MaterialApp(
+      title: 'Text To Speech App',
       debugShowCheckedModeBanner: false,
       home: Home(),
     );
